@@ -134,6 +134,32 @@ function pad2(n) {
 function isoDeAnoMesDia(ano, mesIndex, dia) {
   return `${ano}-${pad2(mesIndex + 1)}-${pad2(dia)}`;
 }
+function isoAdicionarDias(iso, dias) {
+  const d = /* @__PURE__ */ new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+const AMBIENTES_CASA = ["Cozinha", "Sala", "Quarto", "Banheiro", "\xC1rea de servi\xE7o", "Outros"];
+const EMOJI_AMBIENTE = { Cozinha: "\u{1F373}", Sala: "\u{1F6CB}\uFE0F", Quarto: "\u{1F6CF}\uFE0F", Banheiro: "\u{1F6BF}", "\xC1rea de servi\xE7o": "\u{1F9FA}", Outros: "\u{1F4E6}" };
+const FREQUENCIAS_CASA = [
+  { dias: 1, rotulo: "Di\xE1ria" },
+  { dias: 7, rotulo: "Semanal" },
+  { dias: 14, rotulo: "Quinzenal" },
+  { dias: 30, rotulo: "Mensal" }
+];
+function rotuloFrequenciaCasa(dias) {
+  return (FREQUENCIAS_CASA.find((f) => f.dias === dias) || {}).rotulo || `A cada ${dias}d`;
+}
+function proximaDataCasa(t) {
+  return t.ultimaFeita ? isoAdicionarDias(t.ultimaFeita, t.frequenciaDias) : t.dataBase;
+}
+function statusCasa(t) {
+  const prox = proximaDataCasa(t);
+  const dias = diasEntre(prox);
+  if (dias < 0) return { rotulo: `Atrasada ${Math.abs(dias)}d`, cor: C.vermelho, atrasada: true };
+  if (dias === 0) return { rotulo: "Hoje", cor: C.champagne, atrasada: false };
+  return { rotulo: `Em ${dias}d`, cor: C.textoSuave, atrasada: false };
+}
 const FRASES = [
   "Cuidar de voc\xEA tamb\xE9m \xE9 produtividade.",
   "Pequenos passos, todos os dias, mudam tudo.",
@@ -254,7 +280,17 @@ function dadosIniciais() {
         [isoDeHoje(16)]: "plantao",
         [isoDeHoje(17)]: "nao_trabalho"
       }
-    }
+    },
+    tarefasCasa: [
+      { id: uid(), titulo: "Lavar lou\xE7as/organizar/aspirar", ambiente: "Cozinha", frequenciaDias: 7, duracaoMin: 30, ultimaFeita: isoDeHoje(-1), dataBase: isoDeHoje(6) },
+      { id: uid(), titulo: "Lavar vidros", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
+      { id: uid(), titulo: "Lavar a parede", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
+      { id: uid(), titulo: "Faxina fog\xE3o", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
+      { id: uid(), titulo: "Limpar a geladeira", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
+      { id: uid(), titulo: "Lavar o ch\xE3o", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
+      { id: uid(), titulo: "Aspirar sof\xE1", ambiente: "Sala", frequenciaDias: 14, duracaoMin: 20, ultimaFeita: null, dataBase: isoDeHoje(-2) },
+      { id: uid(), titulo: "Tirar p\xF3 dos m\xF3veis", ambiente: "Sala", frequenciaDias: 7, duracaoMin: 10, ultimaFeita: null, dataBase: isoDeHoje(-2) }
+    ]
   };
 }
 const AppCtx = createContext(null);
@@ -583,12 +619,13 @@ function TelaVida({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
   const subs = [
     { id: "metas", label: "Metas" },
     { id: "habitos", label: "H\xE1bitos" },
+    { id: "casa", label: "Casa" },
     { id: "autocuidado", label: "Autocuidado" },
     { id: "diario", label: "Di\xE1rio" },
     { id: "desejos", label: "Desejos" },
     { id: "projetos", label: "Projetos" }
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Vida", subtitulo: "Sua organiza\xE7\xE3o pessoal", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 } }, subs.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, onClick: () => setSub(s.id), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: sub === s.id ? C.texto : C.rosaClaro, color: sub === s.id ? "#fff" : C.texto } }, s.label))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, sub === "metas" && /* @__PURE__ */ React.createElement(SecaoMetas, null), sub === "habitos" && /* @__PURE__ */ React.createElement(SecaoHabitos, null), sub === "autocuidado" && /* @__PURE__ */ React.createElement(SecaoAutocuidado, null), sub === "diario" && /* @__PURE__ */ React.createElement(SecaoDiario, null), sub === "desejos" && /* @__PURE__ */ React.createElement(SecaoDesejos, null), sub === "projetos" && /* @__PURE__ */ React.createElement(SecaoProjetos, null)));
+  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Vida", subtitulo: "Sua organiza\xE7\xE3o pessoal", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 } }, subs.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, onClick: () => setSub(s.id), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: sub === s.id ? C.texto : C.rosaClaro, color: sub === s.id ? "#fff" : C.texto } }, s.label))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, sub === "metas" && /* @__PURE__ */ React.createElement(SecaoMetas, null), sub === "habitos" && /* @__PURE__ */ React.createElement(SecaoHabitos, null), sub === "casa" && /* @__PURE__ */ React.createElement(SecaoCasa, null), sub === "autocuidado" && /* @__PURE__ */ React.createElement(SecaoAutocuidado, null), sub === "diario" && /* @__PURE__ */ React.createElement(SecaoDiario, null), sub === "desejos" && /* @__PURE__ */ React.createElement(SecaoDesejos, null), sub === "projetos" && /* @__PURE__ */ React.createElement(SecaoProjetos, null)));
 }
 function SecaoMetas() {
   const { metas, adicionarMeta, editarMeta, removerMeta } = useApp();
@@ -646,6 +683,47 @@ function SecaoHabitos() {
       onSalvar: (d) => {
         if (!d.nome) return;
         modal.editando.id ? editarHabito(modal.editando.id, d) : adicionarHabito(d);
+        setModal(null);
+      }
+    }
+  ));
+}
+function SecaoCasa() {
+  const { tarefasCasa, adicionarTarefaCasa, editarTarefaCasa, removerTarefaCasa, concluirTarefaCasa } = useApp();
+  const [modal, setModal] = useState(null);
+  const [filtro, setFiltro] = useState("todos");
+  const ambientesPresentes = Array.from(new Set(tarefasCasa.map((t) => t.ambiente)));
+  const atrasadas = tarefasCasa.filter((t) => statusCasa(t).atrasada);
+  const visiveis = tarefasCasa.filter((t) => {
+    if (filtro === "todos") return true;
+    if (filtro === "pendentes") return statusCasa(t).atrasada || diasEntre(proximaDataCasa(t)) === 0;
+    return t.ambiente === filtro;
+  });
+  const porAmbiente = ambientesPresentes.map((amb) => ({ amb, itens: visiveis.filter((t) => t.ambiente === amb) })).filter((g) => g.itens.length > 0);
+  const campos = [
+    { chave: "titulo", rotulo: "Tarefa", tipo: "texto", placeholder: "Ex: Lavar o ch\xE3o" },
+    { chave: "ambiente", rotulo: "Ambiente", tipo: "select", opcoes: AMBIENTES_CASA.map((a) => ({ valor: a, rotulo: a })) },
+    { chave: "frequenciaDias", rotulo: "Frequ\xEAncia", tipo: "select", opcoes: FREQUENCIAS_CASA.map((f) => ({ valor: f.dias, rotulo: f.rotulo })) },
+    { chave: "duracaoMin", rotulo: "Dura\xE7\xE3o (min)", tipo: "numero", placeholder: "Ex: 15" }
+  ];
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12.5, color: C.textoSuave, margin: "0 0 2px" } }, atrasadas.length, " tarefa(s) atrasada(s)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFiltro("todos"), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: filtro === "todos" ? C.malva : C.rosaClaro, color: filtro === "todos" ? "#fff" : C.texto } }, "Todos"), /* @__PURE__ */ React.createElement("button", { onClick: () => setFiltro("pendentes"), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: filtro === "pendentes" ? C.malva : C.rosaClaro, color: filtro === "pendentes" ? "#fff" : C.texto, display: "flex", alignItems: "center", gap: 4 } }, "\u26A0\uFE0F Pendentes"), AMBIENTES_CASA.filter((a) => ambientesPresentes.includes(a)).map((a) => /* @__PURE__ */ React.createElement("button", { key: a, onClick: () => setFiltro(a), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: filtro === a ? C.malva : C.rosaClaro, color: filtro === a ? "#fff" : C.texto } }, EMOJI_AMBIENTE[a] || "\u{1F4CC}", " ", a))), porAmbiente.length === 0 && /* @__PURE__ */ React.createElement(EstadoVazio, { texto: "Nenhuma tarefa por aqui. \u{1F389}" }), porAmbiente.map((grupo) => /* @__PURE__ */ React.createElement("div", { key: grupo.amb }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: C.texto, margin: "10px 2px 8px", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, EMOJI_AMBIENTE[grupo.amb] || "\u{1F4CC}"), " ", grupo.amb), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, grupo.itens.map((t) => {
+    const st = statusCasa(t);
+    return /* @__PURE__ */ React.createElement(Cartao, { key: t.id, style: { padding: 14, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => concluirTarefaCasa(t.id), style: { width: 26, height: 26, borderRadius: 13, border: `2px solid ${C.rosaCha}`, background: "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 }, onClick: () => setModal({ editando: t }) }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: C.texto, margin: "0 0 6px" } }, t.titulo), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Pill, { cor: C.lilas }, rotuloFrequenciaCasa(t.frequenciaDias)), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11.5, color: C.textoSuave, display: "flex", alignItems: "center", gap: 3 } }, /* @__PURE__ */ React.createElement(Clock, { size: 11, color: C.textoSuave }), " ", t.duracaoMin, "min"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11.5, fontWeight: 600, color: st.cor } }, st.rotulo))), /* @__PURE__ */ React.createElement("button", { onClick: () => removerTarefaCasa(t.id), style: { background: "none", border: "none", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(Trash2, { size: 16, color: C.vermelho })));
+  })))), /* @__PURE__ */ React.createElement(BotaoFlutuante, { onClick: () => setModal({ editando: { ambiente: AMBIENTES_CASA[0], frequenciaDias: 7, duracaoMin: 15 } }) }), modal && /* @__PURE__ */ React.createElement(
+    ModalFormulario,
+    {
+      titulo: modal.editando.id ? "Editar tarefa" : "Nova tarefa de casa",
+      campos,
+      valores: modal.editando,
+      corDestaque: C.malva,
+      onFechar: () => setModal(null),
+      onExcluir: modal.editando.id ? () => {
+        removerTarefaCasa(modal.editando.id);
+        setModal(null);
+      } : void 0,
+      onSalvar: (d) => {
+        if (!d.titulo) return;
+        modal.editando.id ? editarTarefaCasa(modal.editando.id, d) : adicionarTarefaCasa(d);
         setModal(null);
       }
     }
@@ -976,7 +1054,11 @@ function AppProvider({ children }) {
         dias: tipo ? { ...e.escala.dias, [iso]: tipo } : Object.fromEntries(Object.entries(e.escala.dias).filter(([k]) => k !== iso))
       }
     })),
-    setHorasPorPlantao: (v) => setEstado((e) => ({ ...e, escala: { ...e.escala, horasPorPlantao: v } }))
+    setHorasPorPlantao: (v) => setEstado((e) => ({ ...e, escala: { ...e.escala, horasPorPlantao: v } })),
+    adicionarTarefaCasa: (t) => setEstado((e) => ({ ...e, tarefasCasa: [...e.tarefasCasa, { id: uid(), ultimaFeita: null, dataBase: HOJE_ISO, ...t }] })),
+    editarTarefaCasa: (id, novo) => setEstado((e) => ({ ...e, tarefasCasa: e.tarefasCasa.map((t) => t.id === id ? { ...t, ...novo } : t) })),
+    removerTarefaCasa: (id) => setEstado((e) => ({ ...e, tarefasCasa: e.tarefasCasa.filter((t) => t.id !== id) })),
+    concluirTarefaCasa: (id) => setEstado((e) => ({ ...e, tarefasCasa: e.tarefasCasa.map((t) => t.id === id ? { ...t, ultimaFeita: HOJE_ISO } : t) }))
   };
   return /* @__PURE__ */ React.createElement(AppCtx.Provider, { value: { ...estado, ...acoes } }, children);
 }
