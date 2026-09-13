@@ -123,43 +123,6 @@ function diasEntre(isoAlvo) {
   return Math.round((alvo - hoje) / 864e5);
 }
 const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"];
-const NOMES_DIA_SEMANA = ["Domingo", "Segunda", "Ter\xE7a", "Quarta", "Quinta", "Sexta", "S\xE1bado"];
-const NOMES_MES = ["Janeiro", "Fevereiro", "Mar\xE7o", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-function nomeDiaSemana(iso) {
-  return NOMES_DIA_SEMANA[(/* @__PURE__ */ new Date(iso + "T12:00:00")).getDay()];
-}
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-function isoDeAnoMesDia(ano, mesIndex, dia) {
-  return `${ano}-${pad2(mesIndex + 1)}-${pad2(dia)}`;
-}
-function isoAdicionarDias(iso, dias) {
-  const d = /* @__PURE__ */ new Date(iso + "T12:00:00");
-  d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
-}
-const AMBIENTES_CASA = ["Cozinha", "Sala", "Quarto", "Banheiro", "\xC1rea de servi\xE7o", "Outros"];
-const EMOJI_AMBIENTE = { Cozinha: "\u{1F373}", Sala: "\u{1F6CB}\uFE0F", Quarto: "\u{1F6CF}\uFE0F", Banheiro: "\u{1F6BF}", "\xC1rea de servi\xE7o": "\u{1F9FA}", Outros: "\u{1F4E6}" };
-const FREQUENCIAS_CASA = [
-  { dias: 1, rotulo: "Di\xE1ria" },
-  { dias: 7, rotulo: "Semanal" },
-  { dias: 14, rotulo: "Quinzenal" },
-  { dias: 30, rotulo: "Mensal" }
-];
-function rotuloFrequenciaCasa(dias) {
-  return (FREQUENCIAS_CASA.find((f) => f.dias === dias) || {}).rotulo || `A cada ${dias}d`;
-}
-function proximaDataCasa(t) {
-  return t.ultimaFeita ? isoAdicionarDias(t.ultimaFeita, t.frequenciaDias) : t.dataBase;
-}
-function statusCasa(t) {
-  const prox = proximaDataCasa(t);
-  const dias = diasEntre(prox);
-  if (dias < 0) return { rotulo: `Atrasada ${Math.abs(dias)}d`, cor: C.vermelho, atrasada: true };
-  if (dias === 0) return { rotulo: "Hoje", cor: C.champagne, atrasada: false };
-  return { rotulo: `Em ${dias}d`, cor: C.textoSuave, atrasada: false };
-}
 const FRASES = [
   "Cuidar de voc\xEA tamb\xE9m \xE9 produtividade.",
   "Pequenos passos, todos os dias, mudam tudo.",
@@ -177,6 +140,23 @@ const CATEGORIAS_META = ["Pessoal", "Carreira", "Sa\xFAde", "Financeiro", "Outro
 const CATEGORIAS_RECEITA = ["Sal\xE1rio", "Freelance", "Presente", "Outros"];
 const CATEGORIAS_DESPESA = ["Alimenta\xE7\xE3o", "Transporte", "Moradia", "Lazer", "Sa\xFAde", "Compras", "Assinaturas", "Outros"];
 const CONTAS = ["Carteira", "Conta Corrente", "Poupan\xE7a", "Cart\xE3o de Cr\xE9dito"];
+const DIAS_SEMANA_CAL = ["D", "S", "T", "Q", "Q", "S", "S"];
+const TIPOS_ESCALA = [
+  { valor: "plantao", emoji: "\u{1F319}", rotulo: "Plant\xE3o Noturno", cor: C.lilas, corFundo: C.lilas + "40" },
+  { valor: "nao_trabalho", emoji: "\u{1F6AB}", rotulo: "N\xE3o trabalho", cor: C.vermelho, corFundo: C.vermelho + "30" },
+  { valor: "folga", emoji: "\u2600\uFE0F", rotulo: "Folga", cor: C.verde, corFundo: C.verde + "40" },
+  { valor: "ferias", emoji: "\u2728", rotulo: "F\xE9rias", cor: C.champagne, corFundo: C.champagne + "40" },
+  { valor: "troca", emoji: "\u{1F504}", rotulo: "Troca de plant\xE3o", cor: C.malva, corFundo: C.malva + "40" }
+];
+function tipoEscalaPorValor(v) {
+  return TIPOS_ESCALA.find((t) => t.valor === v) || null;
+}
+function diasNoMes(ano, mes) {
+  return new Date(ano, mes + 1, 0).getDate();
+}
+function primeiroDiaSemanaMes(ano, mes) {
+  return new Date(ano, mes, 1).getDay();
+}
 const HUMORES = [
   { valor: "otima", emoji: "\u{1F60A}", rotulo: "\xD3tima" },
   { valor: "bem", emoji: "\u{1F60C}", rotulo: "Bem" },
@@ -184,17 +164,6 @@ const HUMORES = [
   { valor: "cansada", emoji: "\u{1F614}", rotulo: "Cansada" },
   { valor: "dificil", emoji: "\u{1F62B}", rotulo: "Dif\xEDcil" }
 ];
-const TIPOS_ESCALA = {
-  plantao: { rotulo: "Plant\xE3o Noturno", icone: Moon, corIcone: "#E8B84B", bg: "#E4E7FA" },
-  nao_trabalho: { rotulo: "N\xE3o trabalho", icone: X, corIcone: "#E3695E", bg: "#E4E7FA" },
-  folga: { rotulo: "Folga", icone: Sun, corIcone: "#6FAE72", bg: "#DDEEDC" },
-  ferias: { rotulo: "F\xE9rias", icone: Sparkles, corIcone: "#CBA76B", bg: "#FBE7CE" },
-  troca: { rotulo: "Troca de plant\xE3o", icone: Repeat, corIcone: "#6E93B8", bg: "#DCEAF3" }
-};
-function proximaOcorrenciaEscala(dias, tipo, apartirIso) {
-  const datas = Object.keys(dias).filter((d) => dias[d] === tipo && d > apartirIso).sort();
-  return datas[0] || null;
-}
 function tarefaOcorreEm(t, iso) {
   if (!t.recorrente) return t.data === iso;
   if (t.frequencia === "diaria") return iso >= t.data;
@@ -245,6 +214,8 @@ function dadosIniciais() {
       { id: uid(), tipo: "Despesa", descricao: "Uber", categoria: "Transporte", conta: "Carteira", valor: 38, data: isoDeHoje(-1) },
       { id: uid(), tipo: "Despesa", descricao: "Assinatura streaming", categoria: "Assinaturas", conta: "Cart\xE3o de Cr\xE9dito", valor: 45, data: isoDeHoje(-2) }
     ],
+    diasEscala: {},
+    horasPorPlantao: 12,
     orcamentoMensal: 2200,
     metasFinanceiras: [
       { id: uid(), titulo: "Reserva de emerg\xEAncia", valorAlvo: 5e3, valorAtual: 1800, prazo: isoDeHoje(120) }
@@ -255,41 +226,6 @@ function dadosIniciais() {
       { dia: "3 dias atr\xE1s", pct: 55 },
       { dia: "2 dias atr\xE1s", pct: 80 },
       { dia: "Ontem", pct: 75 }
-    ],
-    escala: {
-      horasPorPlantao: 12,
-      dias: {
-        [isoDeHoje(-2)]: "plantao",
-        [isoDeHoje(-1)]: "nao_trabalho",
-        [isoDeHoje(0)]: "plantao",
-        [isoDeHoje(1)]: "nao_trabalho",
-        [isoDeHoje(2)]: "plantao",
-        [isoDeHoje(3)]: "nao_trabalho",
-        [isoDeHoje(4)]: "plantao",
-        [isoDeHoje(5)]: "nao_trabalho",
-        [isoDeHoje(6)]: "plantao",
-        [isoDeHoje(7)]: "folga",
-        [isoDeHoje(8)]: "folga",
-        [isoDeHoje(9)]: "folga",
-        [isoDeHoje(10)]: "plantao",
-        [isoDeHoje(11)]: "nao_trabalho",
-        [isoDeHoje(12)]: "plantao",
-        [isoDeHoje(13)]: "nao_trabalho",
-        [isoDeHoje(14)]: "plantao",
-        [isoDeHoje(15)]: "nao_trabalho",
-        [isoDeHoje(16)]: "plantao",
-        [isoDeHoje(17)]: "nao_trabalho"
-      }
-    },
-    tarefasCasa: [
-      { id: uid(), titulo: "Lavar lou\xE7as/organizar/aspirar", ambiente: "Cozinha", frequenciaDias: 7, duracaoMin: 30, ultimaFeita: isoDeHoje(-1), dataBase: isoDeHoje(6) },
-      { id: uid(), titulo: "Lavar vidros", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
-      { id: uid(), titulo: "Lavar a parede", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
-      { id: uid(), titulo: "Faxina fog\xE3o", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
-      { id: uid(), titulo: "Limpar a geladeira", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
-      { id: uid(), titulo: "Lavar o ch\xE3o", ambiente: "Cozinha", frequenciaDias: 14, duracaoMin: 15, ultimaFeita: null, dataBase: isoDeHoje(-2) },
-      { id: uid(), titulo: "Aspirar sof\xE1", ambiente: "Sala", frequenciaDias: 14, duracaoMin: 20, ultimaFeita: null, dataBase: isoDeHoje(-2) },
-      { id: uid(), titulo: "Tirar p\xF3 dos m\xF3veis", ambiente: "Sala", frequenciaDias: 7, duracaoMin: 10, ultimaFeita: null, dataBase: isoDeHoje(-2) }
     ]
   };
 }
@@ -619,13 +555,12 @@ function TelaVida({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
   const subs = [
     { id: "metas", label: "Metas" },
     { id: "habitos", label: "H\xE1bitos" },
-    { id: "casa", label: "Casa" },
     { id: "autocuidado", label: "Autocuidado" },
     { id: "diario", label: "Di\xE1rio" },
     { id: "desejos", label: "Desejos" },
     { id: "projetos", label: "Projetos" }
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Vida", subtitulo: "Sua organiza\xE7\xE3o pessoal", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 } }, subs.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, onClick: () => setSub(s.id), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: sub === s.id ? C.texto : C.rosaClaro, color: sub === s.id ? "#fff" : C.texto } }, s.label))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, sub === "metas" && /* @__PURE__ */ React.createElement(SecaoMetas, null), sub === "habitos" && /* @__PURE__ */ React.createElement(SecaoHabitos, null), sub === "casa" && /* @__PURE__ */ React.createElement(SecaoCasa, null), sub === "autocuidado" && /* @__PURE__ */ React.createElement(SecaoAutocuidado, null), sub === "diario" && /* @__PURE__ */ React.createElement(SecaoDiario, null), sub === "desejos" && /* @__PURE__ */ React.createElement(SecaoDesejos, null), sub === "projetos" && /* @__PURE__ */ React.createElement(SecaoProjetos, null)));
+  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Vida", subtitulo: "Sua organiza\xE7\xE3o pessoal", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 } }, subs.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, onClick: () => setSub(s.id), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: sub === s.id ? C.texto : C.rosaClaro, color: sub === s.id ? "#fff" : C.texto } }, s.label))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, sub === "metas" && /* @__PURE__ */ React.createElement(SecaoMetas, null), sub === "habitos" && /* @__PURE__ */ React.createElement(SecaoHabitos, null), sub === "autocuidado" && /* @__PURE__ */ React.createElement(SecaoAutocuidado, null), sub === "diario" && /* @__PURE__ */ React.createElement(SecaoDiario, null), sub === "desejos" && /* @__PURE__ */ React.createElement(SecaoDesejos, null), sub === "projetos" && /* @__PURE__ */ React.createElement(SecaoProjetos, null)));
 }
 function SecaoMetas() {
   const { metas, adicionarMeta, editarMeta, removerMeta } = useApp();
@@ -683,47 +618,6 @@ function SecaoHabitos() {
       onSalvar: (d) => {
         if (!d.nome) return;
         modal.editando.id ? editarHabito(modal.editando.id, d) : adicionarHabito(d);
-        setModal(null);
-      }
-    }
-  ));
-}
-function SecaoCasa() {
-  const { tarefasCasa, adicionarTarefaCasa, editarTarefaCasa, removerTarefaCasa, concluirTarefaCasa } = useApp();
-  const [modal, setModal] = useState(null);
-  const [filtro, setFiltro] = useState("todos");
-  const ambientesPresentes = Array.from(new Set(tarefasCasa.map((t) => t.ambiente)));
-  const atrasadas = tarefasCasa.filter((t) => statusCasa(t).atrasada);
-  const visiveis = tarefasCasa.filter((t) => {
-    if (filtro === "todos") return true;
-    if (filtro === "pendentes") return statusCasa(t).atrasada || diasEntre(proximaDataCasa(t)) === 0;
-    return t.ambiente === filtro;
-  });
-  const porAmbiente = ambientesPresentes.map((amb) => ({ amb, itens: visiveis.filter((t) => t.ambiente === amb) })).filter((g) => g.itens.length > 0);
-  const campos = [
-    { chave: "titulo", rotulo: "Tarefa", tipo: "texto", placeholder: "Ex: Lavar o ch\xE3o" },
-    { chave: "ambiente", rotulo: "Ambiente", tipo: "select", opcoes: AMBIENTES_CASA.map((a) => ({ valor: a, rotulo: a })) },
-    { chave: "frequenciaDias", rotulo: "Frequ\xEAncia", tipo: "select", opcoes: FREQUENCIAS_CASA.map((f) => ({ valor: f.dias, rotulo: f.rotulo })) },
-    { chave: "duracaoMin", rotulo: "Dura\xE7\xE3o (min)", tipo: "numero", placeholder: "Ex: 15" }
-  ];
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12.5, color: C.textoSuave, margin: "0 0 2px" } }, atrasadas.length, " tarefa(s) atrasada(s)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFiltro("todos"), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: filtro === "todos" ? C.malva : C.rosaClaro, color: filtro === "todos" ? "#fff" : C.texto } }, "Todos"), /* @__PURE__ */ React.createElement("button", { onClick: () => setFiltro("pendentes"), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: filtro === "pendentes" ? C.malva : C.rosaClaro, color: filtro === "pendentes" ? "#fff" : C.texto, display: "flex", alignItems: "center", gap: 4 } }, "\u26A0\uFE0F Pendentes"), AMBIENTES_CASA.filter((a) => ambientesPresentes.includes(a)).map((a) => /* @__PURE__ */ React.createElement("button", { key: a, onClick: () => setFiltro(a), style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: filtro === a ? C.malva : C.rosaClaro, color: filtro === a ? "#fff" : C.texto } }, EMOJI_AMBIENTE[a] || "\u{1F4CC}", " ", a))), porAmbiente.length === 0 && /* @__PURE__ */ React.createElement(EstadoVazio, { texto: "Nenhuma tarefa por aqui. \u{1F389}" }), porAmbiente.map((grupo) => /* @__PURE__ */ React.createElement("div", { key: grupo.amb }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: C.texto, margin: "10px 2px 8px", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, EMOJI_AMBIENTE[grupo.amb] || "\u{1F4CC}"), " ", grupo.amb), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, grupo.itens.map((t) => {
-    const st = statusCasa(t);
-    return /* @__PURE__ */ React.createElement(Cartao, { key: t.id, style: { padding: 14, display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => concluirTarefaCasa(t.id), style: { width: 26, height: 26, borderRadius: 13, border: `2px solid ${C.rosaCha}`, background: "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 }, onClick: () => setModal({ editando: t }) }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: C.texto, margin: "0 0 6px" } }, t.titulo), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Pill, { cor: C.lilas }, rotuloFrequenciaCasa(t.frequenciaDias)), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11.5, color: C.textoSuave, display: "flex", alignItems: "center", gap: 3 } }, /* @__PURE__ */ React.createElement(Clock, { size: 11, color: C.textoSuave }), " ", t.duracaoMin, "min"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11.5, fontWeight: 600, color: st.cor } }, st.rotulo))), /* @__PURE__ */ React.createElement("button", { onClick: () => removerTarefaCasa(t.id), style: { background: "none", border: "none", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(Trash2, { size: 16, color: C.vermelho })));
-  })))), /* @__PURE__ */ React.createElement(BotaoFlutuante, { onClick: () => setModal({ editando: { ambiente: AMBIENTES_CASA[0], frequenciaDias: 7, duracaoMin: 15 } }) }), modal && /* @__PURE__ */ React.createElement(
-    ModalFormulario,
-    {
-      titulo: modal.editando.id ? "Editar tarefa" : "Nova tarefa de casa",
-      campos,
-      valores: modal.editando,
-      corDestaque: C.malva,
-      onFechar: () => setModal(null),
-      onExcluir: modal.editando.id ? () => {
-        removerTarefaCasa(modal.editando.id);
-        setModal(null);
-      } : void 0,
-      onSalvar: (d) => {
-        if (!d.titulo) return;
-        modal.editando.id ? editarTarefaCasa(modal.editando.id, d) : adicionarTarefaCasa(d);
         setModal(null);
       }
     }
@@ -920,55 +814,146 @@ function TelaDinheiro({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
     }
   ));
 }
+function CelulaDiaEscala({ numero, tipoInfo, hoje, onClick }) {
+  return /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick,
+      style: {
+        aspectRatio: "1",
+        border: hoje ? `2px solid ${C.rosaCha}` : "1px solid transparent",
+        borderRadius: 14,
+        background: tipoInfo ? tipoInfo.corFundo : C.card,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 2,
+        cursor: "pointer",
+        padding: 0
+      }
+    },
+    /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: C.texto } }, numero),
+    tipoInfo && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, lineHeight: 1 } }, tipoInfo.emoji)
+  );
+}
 function TelaEscala({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
-  const { escala } = useApp();
-  const dias = escala.dias;
-  const hojeDate = /* @__PURE__ */ new Date(HOJE_ISO + "T12:00:00");
-  const [mes, setMes] = useState(hojeDate.getMonth());
-  const [ano, setAno] = useState(hojeDate.getFullYear());
-  const mudarMes = (delta) => {
-    let m = mes + delta, a = ano;
-    if (m < 0) {
-      m = 11;
-      a -= 1;
+  const { diasEscala, horasPorPlantao, definirDiaEscala } = useApp();
+  const dataHoje = /* @__PURE__ */ new Date(HOJE_ISO + "T12:00:00");
+  const [mesRef, setMesRef] = useState(() => new Date(dataHoje.getFullYear(), dataHoje.getMonth(), 1));
+  const [diaSelecionado, setDiaSelecionado] = useState(null);
+  const ano = mesRef.getFullYear();
+  const mesIndice = mesRef.getMonth();
+  const nomeMesBruto = mesRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const nomeMes = nomeMesBruto.charAt(0).toUpperCase() + nomeMesBruto.slice(1);
+  const totalDias = diasNoMes(ano, mesIndice);
+  const offsetSemana = primeiroDiaSemanaMes(ano, mesIndice);
+  const celulas = [];
+  for (let i = 0; i < offsetSemana; i++) celulas.push(null);
+  for (let d = 1; d <= totalDias; d++) {
+    celulas.push(`${ano}-${String(mesIndice + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+  const isosDoMes = celulas.filter(Boolean);
+  const plantoesNoMes = isosDoMes.filter((iso) => diasEscala[iso] === "plantao").length;
+  const folgasNoMes = isosDoMes.filter((iso) => diasEscala[iso] === "folga").length;
+  const horasNoMes = plantoesNoMes * (horasPorPlantao || 12);
+  function buscarProximo(tipo) {
+    for (let i = 0; i <= 60; i++) {
+      const iso = isoDeHoje(i);
+      if (diasEscala[iso] === tipo) {
+        if (i === 0) return "Hoje";
+        if (i === 1) return "Amanh\xE3";
+        return `${i} dias`;
+      }
     }
-    if (m > 11) {
-      m = 0;
-      a += 1;
+    return "\u2014";
+  }
+  const proximaFolgaTexto = buscarProximo("folga");
+  let proximoPlantaoTexto = "\u2014";
+  for (let i = 0; i <= 60; i++) {
+    const iso = isoDeHoje(i);
+    if (diasEscala[iso] === "plantao") {
+      proximoPlantaoTexto = i === 0 ? "Hoje" : i === 1 ? "Amanh\xE3" : diaCurto(iso).charAt(0).toUpperCase() + diaCurto(iso).slice(1);
+      break;
     }
-    setMes(m);
-    setAno(a);
-  };
-  const isoProximaFolga = proximaOcorrenciaEscala(dias, "folga", HOJE_ISO);
-  const isoProximoPlantao = proximaOcorrenciaEscala(dias, "plantao", HOJE_ISO);
-  const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
-  const isosDoMes = Array.from({ length: totalDiasMes }, (_, i) => isoDeAnoMesDia(ano, mes, i + 1));
-  const plantoesNoMes = isosDoMes.filter((iso) => dias[iso] === "plantao").length;
-  const folgasNoMes = isosDoMes.filter((iso) => dias[iso] === "folga").length;
-  const horasNoMes = plantoesNoMes * (escala.horasPorPlantao || 0);
-  const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
-  const celulasVazias = Array.from({ length: primeiroDiaSemana });
-  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Escala", subtitulo: "Minhas folgas", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Pr\xF3xima folga"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, isoProximaFolga ? `${diasEntre(isoProximaFolga)} dias` : "\u2014")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Pr\xF3ximo plant\xE3o"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, isoProximoPlantao ? nomeDiaSemana(isoProximoPlantao) : "\u2014")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Plant\xF5es no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, plantoesNoMes)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Folgas no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, folgasNoMes))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: `1px solid ${C.rosaClaro}`, margin: "16px 0 12px" } }), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Horas trabalhadas no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 26, fontWeight: 700, color: C.rosaCha, margin: 0 } }, horasNoMes, "h")), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 18, marginTop: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 } }, /* @__PURE__ */ React.createElement(BotaoIcone, { icone: ChevronLeft, onClick: () => mudarMes(-1), cor: C.texto }), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: 16, fontWeight: 600, color: C.texto, margin: 0, fontFamily: "Georgia, serif" } }, NOMES_MES[mes], " ", ano), /* @__PURE__ */ React.createElement(BotaoIcone, { icone: ChevronRight, onClick: () => mudarMes(1), cor: C.texto })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 } }, ["D", "S", "T", "Q", "Q", "S", "S"].map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { textAlign: "center", fontSize: 11, color: C.textoSuave, fontWeight: 500 } }, l))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 } }, celulasVazias.map((_, i) => /* @__PURE__ */ React.createElement("div", { key: `vazia-${i}` })), isosDoMes.map((iso, i) => {
-    const tipo = dias[iso];
-    const cfg = tipo ? TIPOS_ESCALA[tipo] : null;
-    const Icone = cfg?.icone;
-    const ehHoje = iso === HOJE_ISO;
-    return /* @__PURE__ */ React.createElement("div", { key: iso, style: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 3,
-      padding: "7px 0",
-      borderRadius: 12,
-      background: cfg ? cfg.bg : "transparent",
-      border: ehHoje ? `2px solid ${C.rosaCha}` : "2px solid transparent",
-      boxSizing: "border-box"
-    } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: ehHoje ? C.rosaCha : C.texto } }, i + 1), Icone && /* @__PURE__ */ React.createElement(Icone, { size: 13, color: cfg.corIcone }));
-  })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px 14px", marginTop: 16 } }, Object.entries(TIPOS_ESCALA).map(([chave, cfg]) => {
-    const Icone = cfg.icone;
-    return /* @__PURE__ */ React.createElement("div", { key: chave, style: { display: "flex", alignItems: "center", gap: 5 } }, /* @__PURE__ */ React.createElement(Icone, { size: 13, color: cfg.corIcone }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: C.textoSuave } }, cfg.rotulo));
-  }))));
+  }
+  function mudarMes(delta) {
+    setMesRef(new Date(ano, mesIndice + delta, 1));
+  }
+  const camposModal = [
+    {
+      chave: "tipo",
+      rotulo: "Selecione o tipo",
+      tipo: "select",
+      opcoes: TIPOS_ESCALA.map((t) => ({ valor: t.valor, rotulo: `${t.emoji} ${t.rotulo}` }))
+    }
+  ];
+  return /* @__PURE__ */ React.createElement(
+    "div",
+    { style: { padding: "0 18px 90px" } },
+    /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Escala", subtitulo: "Sua escala de plant\xF5es", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }),
+    /* @__PURE__ */ React.createElement(
+      "div",
+      { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } },
+      /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "Pr\xF3xima folga"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, proximaFolgaTexto)),
+      /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "Pr\xF3ximo plant\xE3o"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, proximoPlantaoTexto)),
+      /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "Plant\xF5es no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, plantoesNoMes)),
+      /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "Folgas no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, folgasNoMes))
+    ),
+    /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 16, marginTop: 10 } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "Horas trabalhadas no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 24, fontWeight: 700, color: C.rosaCha, margin: "4px 0 0" } }, horasNoMes, "h")),
+    /* @__PURE__ */ React.createElement(TituloSecao, null, "Calend\xE1rio"),
+    /* @__PURE__ */ React.createElement(
+      Cartao,
+      { style: { padding: 16 } },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 } },
+        /* @__PURE__ */ React.createElement(BotaoIcone, { icone: ChevronLeft, onClick: () => mudarMes(-1) }),
+        /* @__PURE__ */ React.createElement("h3", { style: { fontSize: 15, fontWeight: 700, color: C.texto, margin: 0 } }, nomeMes),
+        /* @__PURE__ */ React.createElement(BotaoIcone, { icone: ChevronRight, onClick: () => mudarMes(1) })
+      ),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 5 } },
+        DIAS_SEMANA_CAL.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: `cab-${i}`, style: { textAlign: "center", fontSize: 10.5, color: C.textoSuave, fontWeight: 600, padding: "2px 0 6px" } }, d)),
+        celulas.map(
+          (iso, i) => iso ? /* @__PURE__ */ React.createElement(
+            CelulaDiaEscala,
+            {
+              key: iso,
+              numero: Number(iso.slice(-2)),
+              tipoInfo: tipoEscalaPorValor(diasEscala[iso]),
+              hoje: iso === HOJE_ISO,
+              onClick: () => setDiaSelecionado(iso)
+            }
+          ) : /* @__PURE__ */ React.createElement("div", { key: `vazio-${i}` })
+        )
+      ),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 16 } },
+        TIPOS_ESCALA.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.valor, style: { display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.textoSuave } }, t.emoji, " ", t.rotulo))
+      )
+    ),
+    diaSelecionado && /* @__PURE__ */ React.createElement(
+      ModalFormulario,
+      {
+        titulo: formatarDataLonga(diaSelecionado),
+        campos: camposModal,
+        valores: { tipo: diasEscala[diaSelecionado] || "" },
+        corDestaque: C.champagne,
+        onFechar: () => setDiaSelecionado(null),
+        onSalvar: (dados) => {
+          definirDiaEscala(diaSelecionado, dados.tipo || null);
+          setDiaSelecionado(null);
+        },
+        onExcluir: diasEscala[diaSelecionado] ? () => {
+          definirDiaEscala(diaSelecionado, null);
+          setDiaSelecionado(null);
+        } : void 0
+      }
+    )
+  );
 }
 function TelaPerfil({ onFechar }) {
   const { perfil, editarPerfil, tarefas, habitos, metas } = useApp();
@@ -1047,18 +1032,16 @@ function AppProvider({ children }) {
     adicionarMetaFinanceira: (m) => setEstado((e) => ({ ...e, metasFinanceiras: [...e.metasFinanceiras, { id: uid(), ...m }] })),
     contribuirMetaFinanceira: (id, valor) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.map((m) => m.id === id ? { ...m, valorAtual: m.valorAtual + valor } : m) })),
     removerMetaFinanceira: (id) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.filter((m) => m.id !== id) })),
-    definirDiaEscala: (iso, tipo) => setEstado((e) => ({
-      ...e,
-      escala: {
-        ...e.escala,
-        dias: tipo ? { ...e.escala.dias, [iso]: tipo } : Object.fromEntries(Object.entries(e.escala.dias).filter(([k]) => k !== iso))
+    definirDiaEscala: (iso, tipo) => setEstado((e) => {
+      const diasEscala = { ...e.diasEscala };
+      if (tipo === null || tipo === void 0 || tipo === "") {
+        delete diasEscala[iso];
+      } else {
+        diasEscala[iso] = tipo;
       }
-    })),
-    setHorasPorPlantao: (v) => setEstado((e) => ({ ...e, escala: { ...e.escala, horasPorPlantao: v } })),
-    adicionarTarefaCasa: (t) => setEstado((e) => ({ ...e, tarefasCasa: [...e.tarefasCasa, { id: uid(), ultimaFeita: null, dataBase: HOJE_ISO, ...t }] })),
-    editarTarefaCasa: (id, novo) => setEstado((e) => ({ ...e, tarefasCasa: e.tarefasCasa.map((t) => t.id === id ? { ...t, ...novo } : t) })),
-    removerTarefaCasa: (id) => setEstado((e) => ({ ...e, tarefasCasa: e.tarefasCasa.filter((t) => t.id !== id) })),
-    concluirTarefaCasa: (id) => setEstado((e) => ({ ...e, tarefasCasa: e.tarefasCasa.map((t) => t.id === id ? { ...t, ultimaFeita: HOJE_ISO } : t) }))
+      return { ...e, diasEscala };
+    }),
+    setHorasPorPlantao: (horas) => setEstado((e) => ({ ...e, horasPorPlantao: horas }))
   };
   return /* @__PURE__ */ React.createElement(AppCtx.Provider, { value: { ...estado, ...acoes } }, children);
 }
