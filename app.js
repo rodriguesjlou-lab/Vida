@@ -123,6 +123,17 @@ function diasEntre(isoAlvo) {
   return Math.round((alvo - hoje) / 864e5);
 }
 const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "S\xE1b", "Dom"];
+const NOMES_DIA_SEMANA = ["Domingo", "Segunda", "Ter\xE7a", "Quarta", "Quinta", "Sexta", "S\xE1bado"];
+const NOMES_MES = ["Janeiro", "Fevereiro", "Mar\xE7o", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+function nomeDiaSemana(iso) {
+  return NOMES_DIA_SEMANA[(/* @__PURE__ */ new Date(iso + "T12:00:00")).getDay()];
+}
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+function isoDeAnoMesDia(ano, mesIndex, dia) {
+  return `${ano}-${pad2(mesIndex + 1)}-${pad2(dia)}`;
+}
 const FRASES = [
   "Cuidar de voc\xEA tamb\xE9m \xE9 produtividade.",
   "Pequenos passos, todos os dias, mudam tudo.",
@@ -147,6 +158,17 @@ const HUMORES = [
   { valor: "cansada", emoji: "\u{1F614}", rotulo: "Cansada" },
   { valor: "dificil", emoji: "\u{1F62B}", rotulo: "Dif\xEDcil" }
 ];
+const TIPOS_ESCALA = {
+  plantao: { rotulo: "Plant\xE3o Noturno", icone: Moon, corIcone: "#E8B84B", bg: "#E4E7FA" },
+  nao_trabalho: { rotulo: "N\xE3o trabalho", icone: X, corIcone: "#E3695E", bg: "#E4E7FA" },
+  folga: { rotulo: "Folga", icone: Sun, corIcone: "#6FAE72", bg: "#DDEEDC" },
+  ferias: { rotulo: "F\xE9rias", icone: Sparkles, corIcone: "#CBA76B", bg: "#FBE7CE" },
+  troca: { rotulo: "Troca de plant\xE3o", icone: Repeat, corIcone: "#6E93B8", bg: "#DCEAF3" }
+};
+function proximaOcorrenciaEscala(dias, tipo, apartirIso) {
+  const datas = Object.keys(dias).filter((d) => dias[d] === tipo && d > apartirIso).sort();
+  return datas[0] || null;
+}
 function tarefaOcorreEm(t, iso) {
   if (!t.recorrente) return t.data === iso;
   if (t.frequencia === "diaria") return iso >= t.data;
@@ -207,7 +229,32 @@ function dadosIniciais() {
       { dia: "3 dias atr\xE1s", pct: 55 },
       { dia: "2 dias atr\xE1s", pct: 80 },
       { dia: "Ontem", pct: 75 }
-    ]
+    ],
+    escala: {
+      horasPorPlantao: 12,
+      dias: {
+        [isoDeHoje(-2)]: "plantao",
+        [isoDeHoje(-1)]: "nao_trabalho",
+        [isoDeHoje(0)]: "plantao",
+        [isoDeHoje(1)]: "nao_trabalho",
+        [isoDeHoje(2)]: "plantao",
+        [isoDeHoje(3)]: "nao_trabalho",
+        [isoDeHoje(4)]: "plantao",
+        [isoDeHoje(5)]: "nao_trabalho",
+        [isoDeHoje(6)]: "plantao",
+        [isoDeHoje(7)]: "folga",
+        [isoDeHoje(8)]: "folga",
+        [isoDeHoje(9)]: "folga",
+        [isoDeHoje(10)]: "plantao",
+        [isoDeHoje(11)]: "nao_trabalho",
+        [isoDeHoje(12)]: "plantao",
+        [isoDeHoje(13)]: "nao_trabalho",
+        [isoDeHoje(14)]: "plantao",
+        [isoDeHoje(15)]: "nao_trabalho",
+        [isoDeHoje(16)]: "plantao",
+        [isoDeHoje(17)]: "nao_trabalho"
+      }
+    }
   };
 }
 const AppCtx = createContext(null);
@@ -796,22 +843,54 @@ function TelaDinheiro({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
   ));
 }
 function TelaEscala({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
-  const { tarefas, habitos, metas, historicoDemo } = useApp();
-  const tarefasHoje = tarefas.filter((t) => tarefaOcorreEm(t, HOJE_ISO));
-  const concluidasHoje = tarefasHoje.filter((t) => tarefaConcluidaEm(t, HOJE_ISO));
-  const pctTarefas = tarefasHoje.length ? concluidasHoje.length / tarefasHoje.length * 100 : 0;
-  const habitosFeitos = habitos.filter((h) => h.historico[HOJE_ISO]).length;
-  const pctHabitos = habitos.length ? habitosFeitos / habitos.length * 100 : 0;
-  const progressoMedioMetas = metas.length ? metas.reduce((s, m) => s + m.progresso, 0) / metas.length : 0;
-  const pctGeralHoje = Math.round((pctTarefas + pctHabitos) / 2);
-  const dadosSemana = [...historicoDemo, { dia: "Hoje", pct: pctGeralHoje }];
-  const dadosMensais = [
-    { semana: "Sem. 1", pct: 58 },
-    { semana: "Sem. 2", pct: 66 },
-    { semana: "Sem. 3", pct: 71 },
-    { semana: "Sem. 4", pct: Math.round((66 + pctGeralHoje) / 2) }
-  ];
-  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Escala", subtitulo: "Sua evolu\xE7\xE3o", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } }, /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14, textAlign: "center" } }, /* @__PURE__ */ React.createElement(ProgressoCirculo, { pct: pctTarefas, size: 54 }), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: "8px 0 0" } }, "Tarefas conclu\xEDdas")), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14, textAlign: "center" } }, /* @__PURE__ */ React.createElement(ProgressoCirculo, { pct: pctHabitos, size: 54, cor: C.lilas }), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: "8px 0 0" } }, "H\xE1bitos conclu\xEDdos")), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14, textAlign: "center" } }, /* @__PURE__ */ React.createElement(ProgressoCirculo, { pct: progressoMedioMetas, size: 54, cor: C.champagne }), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: "8px 0 0" } }, "Progresso das metas")), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14, textAlign: "center" } }, /* @__PURE__ */ React.createElement(ProgressoCirculo, { pct: pctGeralHoje, size: 54, cor: C.verde }), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: "8px 0 0" } }, "Produtividade geral"))), /* @__PURE__ */ React.createElement(TituloSecao, null, "Evolu\xE7\xE3o semanal"), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14 } }, /* @__PURE__ */ React.createElement(ResponsiveContainer, { width: "100%", height: 160 }, /* @__PURE__ */ React.createElement(LineChart, { data: dadosSemana }, /* @__PURE__ */ React.createElement(CartesianGrid, { stroke: C.rosaClaro, vertical: false }), /* @__PURE__ */ React.createElement(XAxis, { dataKey: "dia", tick: { fontSize: 9, fill: C.textoSuave }, axisLine: false, tickLine: false }), /* @__PURE__ */ React.createElement(YAxis, { hide: true, domain: [0, 100] }), /* @__PURE__ */ React.createElement(Tooltip, { contentStyle: { borderRadius: 12, border: "none", fontSize: 12 } }), /* @__PURE__ */ React.createElement(Line, { type: "monotone", dataKey: "pct", stroke: C.champagne, strokeWidth: 2.5, dot: { r: 3 } }))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 10.5, color: C.textoSuave, margin: "6px 0 0" } }, 'O ponto "Hoje" reflete sua atividade real; os anteriores s\xE3o ilustrativos.')), /* @__PURE__ */ React.createElement(TituloSecao, null, "Evolu\xE7\xE3o mensal"), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 14 } }, /* @__PURE__ */ React.createElement(ResponsiveContainer, { width: "100%", height: 150 }, /* @__PURE__ */ React.createElement(BarChart, { data: dadosMensais }, /* @__PURE__ */ React.createElement(CartesianGrid, { stroke: C.rosaClaro, vertical: false }), /* @__PURE__ */ React.createElement(XAxis, { dataKey: "semana", tick: { fontSize: 10, fill: C.textoSuave }, axisLine: false, tickLine: false }), /* @__PURE__ */ React.createElement(YAxis, { hide: true, domain: [0, 100] }), /* @__PURE__ */ React.createElement(Tooltip, { contentStyle: { borderRadius: 12, border: "none", fontSize: 12 } }), /* @__PURE__ */ React.createElement(Bar, { dataKey: "pct", fill: C.lilas, radius: [6, 6, 0, 0] })))), /* @__PURE__ */ React.createElement(TituloSecao, null, "Resumo de desempenho"), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 16, background: `linear-gradient(135deg, ${C.rosaClaro}, ${C.malva}33)` } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: C.texto, margin: 0, lineHeight: 1.6 } }, "Hoje voc\xEA concluiu ", concluidasHoje.length, " de ", tarefasHoje.length, " tarefas e ", habitosFeitos, " de ", habitos.length, " h\xE1bitos. Suas metas est\xE3o em ", Math.round(progressoMedioMetas), "% de progresso m\xE9dio. Continue no seu ritmo \u2014 cada avan\xE7o conta.")));
+  const { escala } = useApp();
+  const dias = escala.dias;
+  const hojeDate = /* @__PURE__ */ new Date(HOJE_ISO + "T12:00:00");
+  const [mes, setMes] = useState(hojeDate.getMonth());
+  const [ano, setAno] = useState(hojeDate.getFullYear());
+  const mudarMes = (delta) => {
+    let m = mes + delta, a = ano;
+    if (m < 0) {
+      m = 11;
+      a -= 1;
+    }
+    if (m > 11) {
+      m = 0;
+      a += 1;
+    }
+    setMes(m);
+    setAno(a);
+  };
+  const isoProximaFolga = proximaOcorrenciaEscala(dias, "folga", HOJE_ISO);
+  const isoProximoPlantao = proximaOcorrenciaEscala(dias, "plantao", HOJE_ISO);
+  const totalDiasMes = new Date(ano, mes + 1, 0).getDate();
+  const isosDoMes = Array.from({ length: totalDiasMes }, (_, i) => isoDeAnoMesDia(ano, mes, i + 1));
+  const plantoesNoMes = isosDoMes.filter((iso) => dias[iso] === "plantao").length;
+  const folgasNoMes = isosDoMes.filter((iso) => dias[iso] === "folga").length;
+  const horasNoMes = plantoesNoMes * (escala.horasPorPlantao || 0);
+  const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
+  const celulasVazias = Array.from({ length: primeiroDiaSemana });
+  return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 18px 90px" } }, /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Escala", subtitulo: "Minhas folgas", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Pr\xF3xima folga"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, isoProximaFolga ? `${diasEntre(isoProximaFolga)} dias` : "\u2014")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Pr\xF3ximo plant\xE3o"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, isoProximoPlantao ? nomeDiaSemana(isoProximoPlantao) : "\u2014")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Plant\xF5es no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, plantoesNoMes)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Folgas no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 18, fontWeight: 700, color: C.texto, margin: 0 } }, folgasNoMes))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: `1px solid ${C.rosaClaro}`, margin: "16px 0 12px" } }), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 4px" } }, "Horas trabalhadas no m\xEAs"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 26, fontWeight: 700, color: C.rosaCha, margin: 0 } }, horasNoMes, "h")), /* @__PURE__ */ React.createElement(Cartao, { style: { padding: 18, marginTop: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 } }, /* @__PURE__ */ React.createElement(BotaoIcone, { icone: ChevronLeft, onClick: () => mudarMes(-1), cor: C.texto }), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: 16, fontWeight: 600, color: C.texto, margin: 0, fontFamily: "Georgia, serif" } }, NOMES_MES[mes], " ", ano), /* @__PURE__ */ React.createElement(BotaoIcone, { icone: ChevronRight, onClick: () => mudarMes(1), cor: C.texto })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 } }, ["D", "S", "T", "Q", "Q", "S", "S"].map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { textAlign: "center", fontSize: 11, color: C.textoSuave, fontWeight: 500 } }, l))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 } }, celulasVazias.map((_, i) => /* @__PURE__ */ React.createElement("div", { key: `vazia-${i}` })), isosDoMes.map((iso, i) => {
+    const tipo = dias[iso];
+    const cfg = tipo ? TIPOS_ESCALA[tipo] : null;
+    const Icone = cfg?.icone;
+    const ehHoje = iso === HOJE_ISO;
+    return /* @__PURE__ */ React.createElement("div", { key: iso, style: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 3,
+      padding: "7px 0",
+      borderRadius: 12,
+      background: cfg ? cfg.bg : "transparent",
+      border: ehHoje ? `2px solid ${C.rosaCha}` : "2px solid transparent",
+      boxSizing: "border-box"
+    } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: ehHoje ? C.rosaCha : C.texto } }, i + 1), Icone && /* @__PURE__ */ React.createElement(Icone, { size: 13, color: cfg.corIcone }));
+  })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "8px 14px", marginTop: 16 } }, Object.entries(TIPOS_ESCALA).map(([chave, cfg]) => {
+    const Icone = cfg.icone;
+    return /* @__PURE__ */ React.createElement("div", { key: chave, style: { display: "flex", alignItems: "center", gap: 5 } }, /* @__PURE__ */ React.createElement(Icone, { size: 13, color: cfg.corIcone }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: C.textoSuave } }, cfg.rotulo));
+  }))));
 }
 function TelaPerfil({ onFechar }) {
   const { perfil, editarPerfil, tarefas, habitos, metas } = useApp();
@@ -889,7 +968,15 @@ function AppProvider({ children }) {
     setOrcamentoMensal: (v) => setEstado((e) => ({ ...e, orcamentoMensal: v })),
     adicionarMetaFinanceira: (m) => setEstado((e) => ({ ...e, metasFinanceiras: [...e.metasFinanceiras, { id: uid(), ...m }] })),
     contribuirMetaFinanceira: (id, valor) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.map((m) => m.id === id ? { ...m, valorAtual: m.valorAtual + valor } : m) })),
-    removerMetaFinanceira: (id) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.filter((m) => m.id !== id) }))
+    removerMetaFinanceira: (id) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.filter((m) => m.id !== id) })),
+    definirDiaEscala: (iso, tipo) => setEstado((e) => ({
+      ...e,
+      escala: {
+        ...e.escala,
+        dias: tipo ? { ...e.escala.dias, [iso]: tipo } : Object.fromEntries(Object.entries(e.escala.dias).filter(([k]) => k !== iso))
+      }
+    })),
+    setHorasPorPlantao: (v) => setEstado((e) => ({ ...e, escala: { ...e.escala, horasPorPlantao: v } }))
   };
   return /* @__PURE__ */ React.createElement(AppCtx.Provider, { value: { ...estado, ...acoes } }, children);
 }
