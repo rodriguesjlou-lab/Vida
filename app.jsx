@@ -216,6 +216,15 @@ function dadosIniciais() {
     ],
     diasEscala: {},
     horasPorPlantao: 12,
+    missoesFeitas: {},
+    pontosHoje: 0,
+    pontosTotais: 0,
+    rodadasCompletas: 0,
+    conquistas: [],
+    coposAgua: 0,
+    porcoesFrutas: 0,
+    pesoAtual: 70,
+    dieta: { cafeDaManha: "", almoco: "", jantar: "" },
     orcamentoMensal: 2200,
     metasFinanceiras: [
       { id: uid(), titulo: "Reserva de emerg\xEAncia", valorAlvo: 5e3, valorAtual: 1800, prazo: isoDeHoje(120) }
@@ -404,7 +413,8 @@ function NavegacaoInferior({ ativa, onMudar }) {
     { id: "dia", label: "Meu Dia", icone: CalendarDays },
     { id: "vida", label: "Vida", icone: Heart },
     { id: "dinheiro", label: "Dinheiro", icone: Wallet },
-    { id: "escala", label: "Escala", icone: TrendingUp }
+    { id: "escala", label: "Escala", icone: TrendingUp },
+    { id: "desafios", label: "Desafios", icone: Star }
   ];
   return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 384, background: "#fff", borderTop: `1px solid ${C.rosaClaro}`, display: "flex", padding: "8px 4px calc(8px + env(safe-area-inset-bottom))", zIndex: 30 } }, itens.map((it) => {
     const Icone = it.icone;
@@ -837,6 +847,52 @@ function CelulaDiaEscala({ numero, tipoInfo, hoje, onClick }) {
     tipoInfo && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, lineHeight: 1 } }, tipoInfo.emoji)
   );
 }
+const MISSOES_DIARIAS = [
+  { id: "m1", texto: "Beber \xE1gua" },
+  { id: "m2", texto: "Comer uma fruta" },
+  { id: "m3", texto: "Comer vegetais" },
+  { id: "m4", texto: "Caminhar 10 min" },
+  { id: "m5", texto: "Alongar o corpo" },
+  { id: "m6", texto: "Medita\xE7\xE3o 5 min" },
+  { id: "m7", texto: "Ler 10 min" },
+  { id: "m8", texto: "Dormir 7h+" },
+  { id: "m9", texto: "Evitar a\xE7\xFAcar" },
+  { id: "m10", texto: "Evitar fritura" },
+  { id: "m11", texto: "Escovar dentes" },
+  { id: "m12", texto: "Lavar o rosto" },
+  { id: "m13", texto: "Passar protetor" },
+  { id: "m14", texto: "Arrumar a cama" },
+  { id: "m15", texto: "Anotar gratid\xE3o" }
+];
+const estiloBotaoRedondo = { width: 34, height: 34, borderRadius: 17, border: "none", background: C.rosaClaro, color: C.texto, fontSize: 18, fontWeight: 600, cursor: "pointer" };
+function ContadorDiario({ emoji, titulo, valor, meta, unidade, corBarra, onSubtrair, onSomar }) {
+  return /* @__PURE__ */ React.createElement(
+    Cartao,
+    { style: { padding: 16, marginBottom: 12 } },
+    /* @__PURE__ */ React.createElement(
+      "div",
+      { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 10 } },
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 22 } }, emoji),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        null,
+        /* @__PURE__ */ React.createElement("p", { style: { fontSize: 15, fontWeight: 600, color: C.texto, margin: 0 } }, titulo),
+        /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "2px 0 0" } }, `${valor}/${meta} ${unidade}`)
+      )
+    ),
+    /* @__PURE__ */ React.createElement(ProgressoBarra, { pct: valor / meta * 100, cor: corBarra }),
+    /* @__PURE__ */ React.createElement(
+      "div",
+      { style: { display: "flex", justifyContent: "center", alignItems: "center", marginTop: 12 } },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "flex", gap: 10 } },
+        /* @__PURE__ */ React.createElement("button", { onClick: onSubtrair, style: estiloBotaoRedondo }, "\u2212"),
+        /* @__PURE__ */ React.createElement("button", { onClick: onSomar, style: estiloBotaoRedondo }, "+")
+      )
+    )
+  );
+}
 function TelaEscala({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
   const { diasEscala, horasPorPlantao, definirDiaEscala } = useApp();
   const dataHoje = /* @__PURE__ */ new Date(HOJE_ISO + "T12:00:00");
@@ -955,6 +1011,264 @@ function TelaEscala({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
     )
   );
 }
+function TelaDesafios({ onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }) {
+  const {
+    missoesFeitas,
+    alternarMissaoDiaria,
+    pontosHoje,
+    pontosTotais,
+    rodadasCompletas,
+    conquistas,
+    coposAgua,
+    porcoesFrutas,
+    ajustarContadorDiario,
+    pesoAtual,
+    setPesoAtual,
+    dieta,
+    setRefeicaoDieta,
+    historicoDemo
+  } = useApp();
+  const [subAba, setSubAba] = useState("desafios");
+  const [pesoInput, setPesoInput] = useState(String(pesoAtual));
+  const qtdMissoesFeitas = MISSOES_DIARIAS.filter((m) => missoesFeitas[m.id]).length;
+  const nivel = Math.floor(pontosTotais / 50) + 1;
+  const progressoNivel = pontosTotais % 50 / 50 * 100;
+  const subs = [
+    { id: "desafios", label: "Desafios" },
+    { id: "corpo", label: "Corpo" },
+    { id: "evolucao", label: "Evolu\xE7\xE3o" }
+  ];
+  return /* @__PURE__ */ React.createElement(
+    "div",
+    { style: { padding: "0 18px 90px" } },
+    /* @__PURE__ */ React.createElement(Cabecalho, { titulo: "Desafios & Evolu\xE7\xE3o \u{1F3C6}", subtitulo: "Sua jornada de sa\xFAde e evolu\xE7\xE3o", onAbrirNotificacoes, onAbrirPerfil, qtdNotificacoes }),
+    /* @__PURE__ */ React.createElement(
+      Cartao,
+      { style: { padding: 18, marginBottom: 14 } },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "flex", justifyContent: "space-around", textAlign: "center" } },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          null,
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22 } }, "\u{1F525}"),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, pontosHoje),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "pontos hoje")
+        ),
+        /* @__PURE__ */ React.createElement(
+          "div",
+          null,
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22 } }, "\u2705"),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, `${qtdMissoesFeitas}/${MISSOES_DIARIAS.length}`),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "miss\xF5es")
+        ),
+        /* @__PURE__ */ React.createElement(
+          "div",
+          null,
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22 } }, "\u{1F3AF}"),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, rodadasCompletas),
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 11, color: C.textoSuave, margin: 0 } }, "ciclos completos")
+        )
+      )
+    ),
+    /* @__PURE__ */ React.createElement(
+      "div",
+      { style: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14 } },
+      subs.map((s) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: s.id,
+          onClick: () => setSubAba(s.id),
+          style: { whiteSpace: "nowrap", padding: "7px 13px", borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, background: subAba === s.id ? C.texto : C.rosaClaro, color: subAba === s.id ? "#fff" : C.texto }
+        },
+        s.label
+      ))
+    ),
+    subAba === "desafios" && /* @__PURE__ */ React.createElement(
+      React.Fragment,
+      null,
+      /* @__PURE__ */ React.createElement(ContadorDiario, {
+        emoji: "\u{1F4A7}",
+        titulo: "\xC1gua",
+        valor: coposAgua,
+        meta: 8,
+        unidade: "copos",
+        corBarra: C.lilas,
+        onSubtrair: () => ajustarContadorDiario("coposAgua", -1, 0, 8),
+        onSomar: () => ajustarContadorDiario("coposAgua", 1, 0, 8)
+      }),
+      /* @__PURE__ */ React.createElement(ContadorDiario, {
+        emoji: "\u{1F353}",
+        titulo: "Frutas",
+        valor: porcoesFrutas,
+        meta: 3,
+        unidade: "por\xE7\xF5es",
+        corBarra: C.verde,
+        onSubtrair: () => ajustarContadorDiario("porcoesFrutas", -1, 0, 3),
+        onSomar: () => ajustarContadorDiario("porcoesFrutas", 1, 0, 3)
+      }),
+      /* @__PURE__ */ React.createElement(
+        Cartao,
+        { style: { padding: 16, marginBottom: 14 } },
+        /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: C.texto, margin: "0 0 12px" } }, "\u{1F37D}\uFE0F Minha Dieta de Hoje"),
+        [
+          { chave: "cafeDaManha", rotulo: "\u2615 Caf\xE9 da manh\xE3" },
+          { chave: "almoco", rotulo: "\u{1F374} Almo\xE7o" },
+          { chave: "jantar", rotulo: "\u{1F37D}\uFE0F Jantar" }
+        ].map((r, idx) => /* @__PURE__ */ React.createElement(
+          "div",
+          { key: r.chave, style: { marginBottom: idx < 2 ? 12 : 0 } },
+          /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: C.textoSuave, display: "block", marginBottom: 5 } }, r.rotulo),
+          /* @__PURE__ */ React.createElement("textarea", {
+            value: dieta[r.chave] || "",
+            onChange: (e) => setRefeicaoDieta(r.chave, e.target.value),
+            placeholder: "O que voc\xEA vai comer...",
+            rows: 2,
+            style: { ...estiloInput, resize: "none", fontFamily: "inherit" }
+          })
+        ))
+      ),
+      /* @__PURE__ */ React.createElement(
+        Cartao,
+        { style: { padding: 16, marginBottom: 14 } },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } },
+          /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: C.texto, margin: 0 } }, `\u{1F525} ${MISSOES_DIARIAS.length} Miss\xF5es Di\xE1rias`),
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: C.textoSuave } }, `${qtdMissoesFeitas}/${MISSOES_DIARIAS.length}`)
+        ),
+        /* @__PURE__ */ React.createElement(ProgressoBarra, { pct: qtdMissoesFeitas / MISSOES_DIARIAS.length * 100, cor: C.champagne }),
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { style: { marginTop: 14, display: "flex", flexDirection: "column", gap: 10 } },
+          MISSOES_DIARIAS.map((m, i) => /* @__PURE__ */ React.createElement(
+            "div",
+            { key: m.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
+            /* @__PURE__ */ React.createElement(
+              "button",
+              {
+                onClick: () => alternarMissaoDiaria(m.id),
+                style: { display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", padding: 0, cursor: "pointer", flex: 1, textAlign: "left" }
+              },
+              /* @__PURE__ */ React.createElement(
+                "span",
+                {
+                  style: {
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    flexShrink: 0,
+                    border: `2px solid ${missoesFeitas[m.id] ? C.champagne : C.rosaClaro}`,
+                    background: missoesFeitas[m.id] ? C.champagne : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: 13
+                  }
+                },
+                missoesFeitas[m.id] ? "\u2713" : ""
+              ),
+              /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13.5, color: C.texto } }, `${i + 1}. ${m.texto}`)
+            )
+          ))
+        )
+      ),
+      /* @__PURE__ */ React.createElement(
+        Cartao,
+        { style: { padding: 18 } },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 12 } },
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15 } }, "\u{1F396}\uFE0F"),
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12.5, fontWeight: 700, color: C.textoSuave, letterSpacing: 0.5 } }, "SISTEMA DE PONTUA\xC7\xC3O")
+        ),
+        /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", fontSize: 30, fontWeight: 700, color: C.lilas, margin: 0 } }, pontosTotais),
+        /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", fontSize: 11.5, color: C.textoSuave, margin: "0 0 16px" } }, "pontos totais"),
+        /* @__PURE__ */ React.createElement(
+          "div",
+          { style: { display: "flex", justifyContent: "space-around", textAlign: "center", marginBottom: 14 } },
+          /* @__PURE__ */ React.createElement(
+            "div",
+            null,
+            /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18 } }, "\u2B50"),
+            /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, `N\xEDvel ${nivel}`)
+          ),
+          /* @__PURE__ */ React.createElement(
+            "div",
+            null,
+            /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18 } }, "\u26A1"),
+            /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, pontosHoje),
+            /* @__PURE__ */ React.createElement("p", { style: { fontSize: 10.5, color: C.textoSuave, margin: 0 } }, "pontos hoje")
+          ),
+          /* @__PURE__ */ React.createElement(
+            "div",
+            null,
+            /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18 } }, "\u{1F3AF}"),
+            /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, fontWeight: 700, color: C.texto, margin: "4px 0 0" } }, rodadasCompletas),
+            /* @__PURE__ */ React.createElement("p", { style: { fontSize: 10.5, color: C.textoSuave, margin: 0 } }, "ciclos")
+          )
+        ),
+        /* @__PURE__ */ React.createElement("div", { style: { padding: "0 20px", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(ProgressoBarra, { pct: progressoNivel, cor: C.champagne })),
+        /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: "0 0 8px" } }, "Conquistas desbloqueadas"),
+        conquistas.length === 0 ? /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, fontStyle: "italic", margin: 0 } }, "Complete sua primeira miss\xE3o para desbloquear!") : /* @__PURE__ */ React.createElement(
+          "div",
+          { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+          conquistas.includes("primeira_missao") && /* @__PURE__ */ React.createElement(Pill, { cor: C.champagne }, "\u{1F3AF} Primeira Miss\xE3o")
+        )
+      )
+    ),
+    subAba === "corpo" && /* @__PURE__ */ React.createElement(
+      Cartao,
+      { style: { padding: 18 } },
+      /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: C.textoSuave, margin: 0 } }, "Peso atual"),
+      /* @__PURE__ */ React.createElement("p", { style: { fontSize: 30, fontWeight: 700, color: C.texto, margin: "4px 0 16px" } }, `${pesoAtual}kg`),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { display: "flex", gap: 8 } },
+        /* @__PURE__ */ React.createElement("input", {
+          type: "number",
+          style: estiloInput,
+          value: pesoInput,
+          onChange: (e) => setPesoInput(e.target.value)
+        }),
+        /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            onClick: () => {
+              const v = Number(pesoInput);
+              if (!Number.isNaN(v) && v > 0) setPesoAtual(v);
+            },
+            style: { padding: "0 18px", borderRadius: 14, border: "none", background: C.champagne, color: "#fff", fontSize: 13, fontWeight: 600 }
+          },
+          "Salvar"
+        )
+      )
+    ),
+    subAba === "evolucao" && /* @__PURE__ */ React.createElement(
+      Cartao,
+      { style: { padding: 18 } },
+      /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, fontWeight: 600, color: C.texto, margin: "0 0 12px" } }, "Evolu\xE7\xE3o dos \xFAltimos dias"),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        { style: { width: "100%", height: 180 } },
+        /* @__PURE__ */ React.createElement(
+          ResponsiveContainer,
+          { width: "100%", height: "100%" },
+          /* @__PURE__ */ React.createElement(
+            LineChart,
+            { data: historicoDemo },
+            /* @__PURE__ */ React.createElement(CartesianGrid, { stroke: C.rosaClaro, vertical: false }),
+            /* @__PURE__ */ React.createElement(XAxis, { dataKey: "dia", tick: { fontSize: 10, fill: C.textoSuave } }),
+            /* @__PURE__ */ React.createElement(YAxis, { tick: { fontSize: 10, fill: C.textoSuave }, width: 28 }),
+            /* @__PURE__ */ React.createElement(Tooltip, null),
+            /* @__PURE__ */ React.createElement(Line, { type: "monotone", dataKey: "pct", stroke: C.lilas, strokeWidth: 2, dot: { r: 3 } })
+          )
+        )
+      )
+    )
+  );
+}
 function TelaPerfil({ onFechar }) {
   const { perfil, editarPerfil, tarefas, habitos, metas } = useApp();
   const [editando, setEditando] = useState(false);
@@ -991,7 +1305,10 @@ function TelaNotificacoes({ onFechar }) {
   return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(91,75,87,0.35)", zIndex: 60, display: "flex", justifyContent: "center", alignItems: "flex-end" }, onClick: onFechar }, /* @__PURE__ */ React.createElement("div", { style: { width: "100%", maxWidth: 384, background: "#fff", borderRadius: "28px 28px 0 0", padding: 22, maxHeight: "75vh", overflowY: "auto" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: 16, fontWeight: 600, color: C.texto, margin: 0 } }, "Notifica\xE7\xF5es"), /* @__PURE__ */ React.createElement("button", { onClick: onFechar, style: { background: "none", border: "none" } }, /* @__PURE__ */ React.createElement(X, { size: 20, color: C.textoSuave }))), itens.length === 0 ? /* @__PURE__ */ React.createElement(EstadoVazio, { texto: "Voc\xEA est\xE1 em dia com tudo! \u{1F389}" }) : /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, itens.map((it, i) => /* @__PURE__ */ React.createElement(ItemLinha, { key: i, icone: Bell, corIcone: C.champagne, titulo: it.nome, subtitulo: `${it.tipo} \xB7 ${it.quando}` })))));
 }
 function AppProvider({ children }) {
-  const [estado, setEstado] = useState(() => carregarEstadoSalvo() || dadosIniciais());
+  const [estado, setEstado] = useState(() => {
+    const salvo = carregarEstadoSalvo();
+    return salvo ? { ...dadosIniciais(), ...salvo } : dadosIniciais();
+  });
   useEffect(() => {
     salvarEstado(estado);
   }, [estado]);
@@ -1022,51 +1339,4 @@ function AppProvider({ children }) {
     removerDesejo: (id) => setEstado((e) => ({ ...e, desejos: e.desejos.filter((d) => d.id !== id) })),
     adicionarProjeto: (p) => setEstado((e) => ({ ...e, projetos: [...e.projetos, { id: uid(), ...p }] })),
     editarProjeto: (id, novo) => setEstado((e) => ({ ...e, projetos: e.projetos.map((p) => p.id === id ? { ...p, ...novo } : p) })),
-    removerProjeto: (id) => setEstado((e) => ({ ...e, projetos: e.projetos.filter((p) => p.id !== id) })),
-    adicionarMeta: (m) => setEstado((e) => ({ ...e, metas: [...e.metas, { id: uid(), ...m }] })),
-    editarMeta: (id, novo) => setEstado((e) => ({ ...e, metas: e.metas.map((m) => m.id === id ? { ...m, ...novo } : m) })),
-    removerMeta: (id) => setEstado((e) => ({ ...e, metas: e.metas.filter((m) => m.id !== id) })),
-    adicionarTransacao: (t) => setEstado((e) => ({ ...e, transacoes: [...e.transacoes, { id: uid(), ...t }] })),
-    removerTransacao: (id) => setEstado((e) => ({ ...e, transacoes: e.transacoes.filter((t) => t.id !== id) })),
-    setOrcamentoMensal: (v) => setEstado((e) => ({ ...e, orcamentoMensal: v })),
-    adicionarMetaFinanceira: (m) => setEstado((e) => ({ ...e, metasFinanceiras: [...e.metasFinanceiras, { id: uid(), ...m }] })),
-    contribuirMetaFinanceira: (id, valor) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.map((m) => m.id === id ? { ...m, valorAtual: m.valorAtual + valor } : m) })),
-    removerMetaFinanceira: (id) => setEstado((e) => ({ ...e, metasFinanceiras: e.metasFinanceiras.filter((m) => m.id !== id) })),
-    definirDiaEscala: (iso, tipo) => setEstado((e) => {
-      const diasEscala = { ...e.diasEscala };
-      if (tipo === null || tipo === void 0 || tipo === "") {
-        delete diasEscala[iso];
-      } else {
-        diasEscala[iso] = tipo;
-      }
-      return { ...e, diasEscala };
-    }),
-    setHorasPorPlantao: (horas) => setEstado((e) => ({ ...e, horasPorPlantao: horas }))
-  };
-  return /* @__PURE__ */ React.createElement(AppCtx.Provider, { value: { ...estado, ...acoes } }, children);
-}
-function Conteudo() {
-  const { perfil, editarPerfil, tarefas, habitos } = useApp();
-  const [aba, setAba] = useState("inicio");
-  const [mostrarPerfil, setMostrarPerfil] = useState(false);
-  const [mostrarNotif, setMostrarNotif] = useState(false);
-  if (!perfil) {
-    return /* @__PURE__ */ React.createElement(Onboarding, { onConcluir: (dados) => editarPerfil(dados) });
-  }
-  const qtdNotif = tarefas.filter((t) => t.lembrete && !tarefaConcluidaEm(t, HOJE_ISO)).length + habitos.filter((h) => h.lembrete && !h.historico[HOJE_ISO]).length;
-  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: C.bg, fontFamily: "'Poppins','Segoe UI',sans-serif" } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 384, margin: "0 auto", position: "relative" } }, aba === "inicio" && /* @__PURE__ */ React.createElement(
-    TelaInicio,
-    {
-      irPara: setAba,
-      onAbrirNotificacoes: () => setMostrarNotif(true),
-      onAbrirPerfil: () => setMostrarPerfil(true),
-      qtdNotificacoes: qtdNotif
-    }
-  ), aba === "dia" && /* @__PURE__ */ React.createElement(TelaMeuDia, { onAbrirNotificacoes: () => setMostrarNotif(true), onAbrirPerfil: () => setMostrarPerfil(true), qtdNotificacoes: qtdNotif }), aba === "vida" && /* @__PURE__ */ React.createElement(TelaVida, { onAbrirNotificacoes: () => setMostrarNotif(true), onAbrirPerfil: () => setMostrarPerfil(true), qtdNotificacoes: qtdNotif }), aba === "dinheiro" && /* @__PURE__ */ React.createElement(TelaDinheiro, { onAbrirNotificacoes: () => setMostrarNotif(true), onAbrirPerfil: () => setMostrarPerfil(true), qtdNotificacoes: qtdNotif }), aba === "escala" && /* @__PURE__ */ React.createElement(TelaEscala, { onAbrirNotificacoes: () => setMostrarNotif(true), onAbrirPerfil: () => setMostrarPerfil(true), qtdNotificacoes: qtdNotif }), /* @__PURE__ */ React.createElement(NavegacaoInferior, { ativa: aba, onMudar: setAba }), mostrarPerfil && /* @__PURE__ */ React.createElement(TelaPerfil, { onFechar: () => setMostrarPerfil(false) }), mostrarNotif && /* @__PURE__ */ React.createElement(TelaNotificacoes, { onFechar: () => setMostrarNotif(false) })));
-}
-function MeuPlanner() {
-  return /* @__PURE__ */ React.createElement(AppProvider, null, /* @__PURE__ */ React.createElement(Conteudo, null));
-}
-const elementoRaiz = document.getElementById("root");
-const raiz = createRoot(elementoRaiz);
-raiz.render(/* @__PURE__ */ React.createElement(MeuPlanner, null));
+    removerProjeto: (id) => setEstado((e) => ({ ...e, projetos: e.projetos.filte
