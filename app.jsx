@@ -1339,4 +1339,4 @@ function AppProvider({ children }) {
     removerDesejo: (id) => setEstado((e) => ({ ...e, desejos: e.desejos.filter((d) => d.id !== id) })),
     adicionarProjeto: (p) => setEstado((e) => ({ ...e, projetos: [...e.projetos, { id: uid(), ...p }] })),
     editarProjeto: (id, novo) => setEstado((e) => ({ ...e, projetos: e.projetos.map((p) => p.id === id ? { ...p, ...novo } : p) })),
-    removerProjeto: (id) => setEstado((e) => ({ ...e, projetos: e.projetos.filte
+    removerProjeto: (id) => setEstado((e) => ({ ...e, projetos: e.projetos.filteremoverProjeto: (id) => setEstado((e) => ({ ...e, projetos: e.projetos.filter((p) => p.id !== id) })),
